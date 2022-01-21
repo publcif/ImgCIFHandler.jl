@@ -15,18 +15,22 @@ Julia, including handling the variety of formats provided.
 ==#
 
 module ImgCIFHandler
+
 using CrystalInfoFramework
 using FilePaths
-using DataFrames
 import Tar
-using GzipCodec
-using BzipCodec
-using Download
+using CodecBzip2
+using CodecZlib
+using Downloads
+using HDF5
+using TranscodingStreams
+
+export imgload         #Load raw data
 
 """
 A CIFImage
 """
-abstract struct CIFImage end
+abstract type CIFImage end
 
 # Particular formats should subclass `CIFImage` and implement the
 #`get_image` method
@@ -37,11 +41,10 @@ Return raw data for frame `frame` found at internal path `path`
 """
 get_image(c::CIFImage, frame, path)
 
-include("hdf_image.jl")
-include("cbf_image.jl")
-include("bruker_image.jl")
-include("adsc_image.jl")
-include("handle_compressed.jl")
+#include("hdf_image.jl")
+#include("cbf_image.jl")
+#include("bruker_image.jl")
+#include("adsc_image.jl")
 
 get_image_ids(c::CifBlock) = begin
     return c["_array_data.id"]
@@ -51,6 +54,11 @@ imgload(location,id) = begin
     
 end
 
+"""
+    imgload(c::CifBlock,array_id)
+
+Return the image corresponding to the specified raw array identifier.
+"""
 imgload(c::CifBlock,frame_id) = begin
     ext_loop = get_loop(c,"_array_data.id")
     if !("external_format" in names(ext_loop))
@@ -75,10 +83,17 @@ imgload(c::CifBlock,frame_id) = begin
             info.external_frame)
 end
 
-imgload(uri,path,format,compressed,arch_path,frame)
+"""
+    imgload(uri,path,format,compressed,arch_path,frame::Int)
+
+Return the raw 2D data found at `uri`, optionally compressed into
+an archive of format `compressed` with internal archive path to the data
+of `arch_path`. The object thus referenced has `format` and the target
+frame is `frame`.
+"""
+imgload(uri,path,format,compressed,arch_path,frame::Union{Int,Nothing}) = begin
     # Set up input stream
     stream = IOBuffer()
-    stream = Download.download(uri,stream)
     if compressed != nothing
         if compressed == "TGZ"
             decomp = GzipDecompressor()
@@ -104,14 +119,17 @@ imgload(uri,path,format,compressed,arch_path,frame)
         end
     else
         loc,final_file = mktemp()
-        write(final_file,read(stream))
-        close(final_file)
     end
+    stream = Downloads.download(uri,stream;verbose=true)
+    seekstart(stream)
+    count = write(final_file,read(stream))
+    println("$count bytes read")
+    close(final_file)
     #
     println("Extracted file to $loc")
     if format == "HDF5"
         f = h5open(loc)
-        if !ismissing(frame)
+        if !ismissing(frame) && !isnothing(frame)
             return f[path][frame]
         else
             return read(f[path])
@@ -121,19 +139,12 @@ imgload(uri,path,format,compressed,arch_path,frame)
     end
 end
 
-"""
-    imgload(c::CifBlock,frame::Int;scan=nothing,diffrn=nothing)
-
-Return the image corresponding to the specified frame number. Scan
-identifiers (if more than one) provided in `scan` and experiment
-identifier (if more than one) provided in `diffrn`
-"""
 imgload(c::CifBlock,frame::Int;scan=nothing,diffrn=nothing) = begin
     
     println("Not implemented yet")
 end
 
-imgload(p::Path,id) = begin
+imgload(p::AbstractPath,id) = begin
     c = first(CifFile(p)).second
     imgload(c,id)
 end
@@ -143,3 +154,4 @@ frame_from_frame_id(c::CifBlock,frame::String,scan,diffrn) = begin
     
 end
 
+end  #of module
