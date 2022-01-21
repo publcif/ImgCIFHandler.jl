@@ -1,0 +1,6 @@
+name = "ImgCIFHandler"
+version = "0.0.1"
+uuid = "c7e9ad6d-41c4-4c87-9c27-841f8c354b7f"
+
+[deps]
+CrystalInfoFramework = "6007d9b0-c6b2-11e8-0510-1d10e825f3f1"
