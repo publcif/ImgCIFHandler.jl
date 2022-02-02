@@ -134,8 +134,10 @@ imgload(uri,path,format,compressed,arch_path,frame::Union{Int,Nothing}) = begin
         else
             return read(f[path])
         end
+    elseif format == "CBF"  #one frame per file
+        return cbfload(loc)
     else
-        return "$format Not implemented"
+        raise(error("$format Not implemented"))
     end
 end
 

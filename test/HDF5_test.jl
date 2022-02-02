@@ -9,3 +9,4 @@ result = imgload("https://zenodo.org/record/3637634/files/WBT0064304.nx.hdf",
                  nothing)
 
 println("Dimensions of result are $(size(result)), type is $(typeof(result))")
+end
