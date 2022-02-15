@@ -6,12 +6,14 @@ by the International Union of Crystallography, and recently enhanced with data
 pointers so that the raw data can be preserved outside of the imgCIF file 
 itself.
 
-# Installation and Use
+# Installation
 
 ## Prerequisites
 
 You must have [CBFLib](https://github.com/yayahjb/cbflib) installed. Packages exist for some Linux distributions,
 e.g. `libcbf0` on Debian.
+
+## Installation
 
 To install this package, at the Julia package prompt (reached by typing `]` at the Julia prompt) type `add https://github.com/jamesrhester/ImgCIFHandler.jl`.
 
