@@ -37,11 +37,12 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
       - name: "Install Libcbf in accessible spot"
-        env:
-          LD_LIBRARY_PATH: libcbf/usr/lib/x86_64-linux-gnu/
         run: |
             apt-get download libcbf1; dpkg-deb -x libcbf1* libcbf; ls -l
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
+        env:
+          LD_LIBRARY_PATH: libcbf/usr/lib/x86_64-linux-gnu/
+
         with:
           coverage: 'false'
