@@ -1,4 +1,4 @@
-[Testing](https://github.com/jamesrhester/ImgCIFHandler.jl/workflows/CI/badge.svg)
+![Testing](https://github.com/jamesrhester/ImgCIFHandler.jl/workflows/Tests/badge.svg)
 
 # ImgCIFHandler
 
