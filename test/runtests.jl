@@ -3,16 +3,26 @@ using ImgCIFHandler
 using Test
 using URIs
 
+extract_files() = begin
+    # Uncompress archive
+    archfile = joinpath(@__DIR__,"testfiles/b4_mini.tar.bz2")
+    run(`bunzip2 -k $archfile`)
+    # extract files into directory
+    detar_dir = joinpath(@__DIR__,"testfiles/test_cbf_unzipped")
+    mkpath(detar_dir)
+    cd(detar_dir)
+    run(`tar -xvf ../b4_mini.tar`)
+end
+
+clean_up() = begin
+    rm(joinpath(@__DIR__,"testfiles/test_cbf_unzipped"),recursive=true)
+    rm(joinpath(@__DIR__,"testfiles/b4_mini.tar"))
+end
+
 @testset "Test HDF5 file loading" begin
     q = joinpath(@__DIR__,"testfiles/simple3D.h5")
     x = imgload(q,Val(:HDF),path="/entry/data/test",frame=1)
     @test size(x) == (4,3)
-end
-
-@testset "Test CBF file loading" begin
-    q = joinpath(@__DIR__,"testfiles/s01f0002.cbf")
-    x = imgload(q,Val(:CBF))
-    @test size(x) == (4148,4362)
 end
 
 @testset "Test ADSC file loading" begin
@@ -22,7 +32,14 @@ end
 end
 
 @testset "Test variants of imgload" begin
+    extract_files()
     x = imgload(joinpath(@__DIR__,"testfiles/b4_master.cif"))
+    @test size(x) == (4148,4362)
+end
+
+@testset "Test CBF file loading" begin
+    q = joinpath(@__DIR__,"testfiles/test_cbf_unzipped/s01f0002.cbf")
+    x = imgload(q,Val(:CBF))
     @test size(x) == (4148,4362)
 end
 
@@ -34,3 +51,5 @@ end
     x = imgload(URI(scheme="file",path=loc),Val(:CBF),compressed="TBZ",arch_path="s01f0003.cbf")
     @test size(x) == (4148,4362)
 end
+
+clean_up()
