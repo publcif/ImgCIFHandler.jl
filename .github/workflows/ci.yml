@@ -36,7 +36,7 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.julia-version }}
-      - run: sudo apt-get install libcbf1
+      - run: sudo apt-get install libcbf1; sudo ldconfig -v
       - uses: julia-actions/julia-buildpkg@latest
       - uses: julia-actions/julia-runtest@latest
         with:
