@@ -1,3 +1,5 @@
+[Testing](https://github.com/jamesrhester/ImgCIFHandler.jl/workflows/CI/badge.svg)
+
 # ImgCIFHandler
 
 This Julia package provides a single function `imgload` which will load raw
