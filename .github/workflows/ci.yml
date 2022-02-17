@@ -40,6 +40,11 @@ jobs:
         run: |
             apt-get download libcbf1; dpkg-deb -x libcbf1* libcbf; ls -l
       - uses: julia-actions/julia-buildpkg@latest
+      - name: "Diagnose issue"
+        run: |
+            env; pwd
+        env:
+            LD_LIBRARY_PATH: $GITHUB_WORKSPACE/libcbf/user/lib/x86_64-linux-gnu
       - uses: julia-actions/julia-runtest@latest
         env:
           LD_LIBRARY_PATH: libcbf/usr/lib/x86_64-linux-gnu/
