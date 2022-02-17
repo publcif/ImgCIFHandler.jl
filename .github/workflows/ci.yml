@@ -38,7 +38,10 @@ jobs:
           version: ${{ matrix.julia-version }}
       - name: "Install Libcbf in accessible spot"
         run: |
-            apt-get download libcbf1; dpkg-deb -x libcbf1* libcbf; ls -l
+            apt-get download libcbf1; dpkg-deb -x libcbf1* libcbf
+            pushd libcbf/usr/lib/x86_64-linux-gnu
+            ln -s libcbf.so.1 libcbf.so
+            popd
       - uses: julia-actions/julia-buildpkg@latest
       - name: "Add local libcbf to shared library path"
         run: |
