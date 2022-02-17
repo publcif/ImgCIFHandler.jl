@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        julia-version: ['1','1.7','nightly']
+        julia-version: ['1'] #,'1.7','nightly']
         julia-arch: [x64]
         os: [ubuntu-latest]
     # Steps represent a sequence of tasks that will be executed as part of the job
@@ -40,14 +40,12 @@ jobs:
         run: |
             apt-get download libcbf1; dpkg-deb -x libcbf1* libcbf; ls -l
       - uses: julia-actions/julia-buildpkg@latest
-      - name: "Diagnose issue"
+      - name: "Add local libcbf to shared library path"
         run: |
-            env; pwd
-        env:
-            LD_LIBRARY_PATH: ${{ env.GITHUB_WORKSPACE }}/libcbf/user/lib/x86_64-linux-gnu
+            echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/libcbf/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
+      - name: "Check"
+        run: |
+             env
       - uses: julia-actions/julia-runtest@latest
-        env:
-          LD_LIBRARY_PATH: libcbf/usr/lib/x86_64-linux-gnu/
-
         with:
           coverage: 'false'
