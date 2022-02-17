@@ -41,6 +41,7 @@ jobs:
         run: |
             apt-get download libcbf1; dpkg-deb -x libcbf1* extralibs
             apt-get download libhdf5-103; dpkg-deb -x libhdf5* extralibs
+            apt-get download libsz2; dpkg-deb -x libsz2* extralibs
             pushd extralibs/usr/lib/x86_64-linux-gnu
             ln -s libcbf.so.1 libcbf.so
             popd
