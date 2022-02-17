@@ -44,7 +44,6 @@ jobs:
             pushd extralibs/usr/lib/x86_64-linux-gnu
             ln -s libcbf.so.1 libcbf.so
             popd
-            pushd 
       - uses: julia-actions/julia-buildpkg@latest
       - name: "Add local libcbf to shared library path"
         run: |
