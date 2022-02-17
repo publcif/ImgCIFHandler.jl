@@ -13,7 +13,7 @@ itself.
 ## Prerequisites
 
 You must have [CBFLib](https://github.com/yayahjb/cbflib) installed. Packages exist for some Linux distributions,
-e.g. `libcbf0` on Debian.
+e.g. `libcbf1` on Debian and Ubuntu.
 
 ## Installation
 
@@ -32,4 +32,4 @@ x = imgload("b4_master.cif","ext1")
 # Supported external formats
 
 This release supports `HDF5`, `CBF`, and `SMV` (ADSC) formats, as well as Tar archives (optionally compressed using Bzip2 or Gzip) or 
-Zip archives containing files in those formats. In all cases the imgCIF file contents are used to determine the format.
+Zip archives containing files in those formats. In all cases the format stated by the imgCIF file is used.
