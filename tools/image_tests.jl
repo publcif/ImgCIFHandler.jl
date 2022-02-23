@@ -1,5 +1,5 @@
 using ImgCIFHandler
-using Sixel,ImageInTerminal, Colors,ImageContrastAdjustment
+using ImageInTerminal, Colors,ImageContrastAdjustment
 using ArgParse
 using CrystalInfoFramework,FilePaths,URIs
 

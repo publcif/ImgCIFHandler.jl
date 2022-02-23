@@ -3,7 +3,7 @@
 
 Read an image from an SMV-formatted file
 """
-imgload(filename,::Val{:SMV};path=nothing,frame=nothing) = begin
+imgload(filename::AbstractString,::Val{:SMV};path=nothing,frame=nothing) = begin
     loc = open(filename,"r")
     header = read_adsc_header(loc)
     seek(loc,parse(Int64,header["header_bytes"]))
