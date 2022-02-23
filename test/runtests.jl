@@ -45,10 +45,10 @@ end
 
 @testset "Test extraction from archive" begin
     loc = unescapeuri(joinpath(@__DIR__,"testfiles/b4_mini.tar"))
-    x = imgload(URI(scheme="file",path=loc),Val(:CBF),compressed="TAR",arch_path="s01f0003.cbf")
+    x = imgload(URI(scheme="file",path=loc),Val(:CBF),arch_type="TAR",arch_path="s01f0003.cbf")
     @test size(x) == (4148,4362)
     loc = unescapeuri(joinpath(@__DIR__,"testfiles/b4_mini.tar.bz2"))
-    x = imgload(URI(scheme="file",path=loc),Val(:CBF),compressed="TBZ",arch_path="s01f0003.cbf")
+    x = imgload(URI(scheme="file",path=loc),Val(:CBF),arch_type="TBZ",arch_path="s01f0003.cbf")
     @test size(x) == (4148,4362)
 end
 

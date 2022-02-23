@@ -69,7 +69,7 @@ imgload(c::CifContainer,frame_id) = begin
     ext_frame = "$cat.external_frame" in all_cols ? info["$cat.external_frame"] : nothing
     imgload(full_uri,
             ext_format;
-            compressed = ext_comp,
+            arch_type = ext_comp,
             arch_path = ext_ap,
             path = ext_loc,
             frame = ext_frame
