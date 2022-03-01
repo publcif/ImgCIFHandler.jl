@@ -26,6 +26,7 @@ using Downloads
 using HDF5
 using TranscodingStreams
 using URIs
+using SimpleBufferStream
 
 export imgload         #Load raw data
 
@@ -132,11 +133,9 @@ end
 
 imgload_native(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compression=nothing,kwargs...)= begin
     # Set up input stream
-    stream = Pipe()
-    # Initialise for blocking input/output
-    Base.link_pipe!(stream)  #Not a public API (yet)
+    stream = BufferStream()
     have_file = false   #changes to true when file found
-    loc = mktempdir(cleanup=false) #Where the final file is found
+    loc = mktempdir() #Where the final file is found
     # Parse the URI to catch local files
     u = URI(uri)
 
@@ -146,7 +145,7 @@ imgload_native(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_com
             Downloads.download("$uri",stream;verbose=true)
         catch exc
             if !have_file
-                @error "Problem donwloading $uri" exc
+                @error "Problem downloading $uri" exc
             end
         finally
             close(stream)
