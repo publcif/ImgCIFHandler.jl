@@ -63,7 +63,7 @@ imgload(c::CifContainer,frame_id) = begin
     all_cols = names(info)
     full_uri = make_absolute_uri(c,info["$cat.external_location_uri"])
     println("Loading image from $full_uri")
-    ext_loc = "$cat.external_location" in all_cols ? info["$cat.external_location"] : nothing
+    ext_loc = "$cat.external_path" in all_cols ? info["$cat.external_path"] : nothing
     ext_format = "$cat.external_format" in all_cols ? Val(Symbol(info["$cat.external_format"])) : nothing
     ext_comp = "$cat.external_compression" in all_cols ? info["$cat.external_compression"] : nothing
     ext_ap = "$cat.external_archive_path" in all_cols ? info["$cat.external_archive_path"] : nothing
@@ -94,23 +94,23 @@ end
 imgload_os(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compression=nothing,kwargs...) = begin
     # Use OS pipelines to download efficiently
     cmd_list = Cmd[]
-    loc = mktempdir(cleanup=false)
+    loc = mktempdir()
     decomp_option = "-v"
     if arch_type == "TGZ" decomp_option = "-z" end
     if arch_type == "TBZ" decomp_option = "-j" end
     if arch_type in ("TGZ","TBZ","TAR")
-        push!(cmd_list, `curl $uri`)
+        push!(cmd_list, `curl -s $uri`)
         push!(cmd_list, `tar -C $loc -x $decomp_option -f - --occurrence $arch_path`)
         temp_local = joinpath(loc,arch_path)
     else
         temp_local = joinpath(loc,"temp_download")
         push!(cmd_list, `curl $uri -o $temp_local`)
     end
-    println("Command list is $cmd_list")
+    #println("Command list is $cmd_list")
     try
         run(pipeline(cmd_list...))
     catch exc
-        @info "Finished downloading" exc
+        @debug "Finished downloading" exc
     end
     # Now the final file is in $temp_local
     if arch_type == "ZIP"   #has been downloaded to local storage

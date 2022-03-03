@@ -7,15 +7,25 @@ using CrystalInfoFramework,FilePaths,URIs
 const test_list = []
 const test_list_with_img = []
 
-macro noimgcheck(s)
+# These macros will become more sophisticated
+# with time to make a nice printout. For now
+# they simply collect the tests into two
+# lists.
+macro noimgcheck(description, check)
     # extract name
     #func_name = expr.args[1].args[1] #:=->:call
     #push!(test_list,func_name)
-    quote x = $(esc(s));push!(test_list,x) end
+    quote
+        x = $(esc(check))
+        push!(test_list,($(esc(description)),x))
+    end
 end
 
-macro imgcheck(s)
-    quote x = $(esc(s));push!(test_list_with_img,x) end
+macro imgcheck(description, check)
+    quote
+        x = $(esc(check))
+        push!(test_list_with_img,($(esc(description)),x))
+    end
 end
 
 #macro plaincheck(testname,testexpr,message)
@@ -23,7 +33,7 @@ end
 
 # Checks that do not require an image
 
-@noimgcheck required_items(incif) = begin
+@noimgcheck "Required items" required_items(incif) = begin
     messages = []
     info_check = ("_array_structure_list.dimension",
                   "_array_structure_list.index",
@@ -60,10 +70,9 @@ end
 end
 
 # Make sure there is a data specification
-@noimgcheck data_source(incif) = begin
+@noimgcheck "Data source" data_source(incif) = begin
     messages = []
-    if !haskey(incif,"_array_data.data") && !haskey(incif,"_array_data.external_format") && \
-        !haskey(incif,"_array_data.external_path")
+    if !haskey(incif,"_array_data.data") && !haskey(incif,"_array_data.external_format") && !haskey(incif,"_array_data.external_path")
         push!(messages,(false,"No source of image data specified"))
     end
     if haskey(incif,"_array_data.data")
@@ -76,9 +85,10 @@ end
     if resolvereference("file:///dummy",p) != p
         push!(messages,(true,"WARNING: relative URI $p provided, this is not portable"))
     end
+    return messages
 end
 
-@noimgcheck axes_defined(incif) = begin
+@noimgcheck "Axes defined" axes_defined(incif) = begin
     all_axes = vcat(incif["_axis.id"],[nothing])
     messages = []
     test_values = ("_axis.depends_on","_diffrn_scan_frame_axis.axis_id",
@@ -96,7 +106,7 @@ end
     return messages
 end
 
-@noimgcheck our_limitations(incif) = begin
+@noimgcheck "Our limitations" our_limitations(incif) = begin
     messages = []
     if length(unique(incif["_array_data.array_id"])) > 1
         push!(messages,(false,"WARNING: cannot currently correctly check files with more than one data array structure"))
@@ -106,6 +116,43 @@ end
     end
     if haskey(incif,"_diffrn_detector_element.id") && length(unique(incif["_diffrn_detector_element.id"])) > 1
         push!(messages(false,"WARNING: cannot currently correctly check files with more than one detector element"))
+    end
+    return messages
+end
+
+# Check that the detector translation is as expected
+@noimgcheck "Detector translation" trans_is_neg(incif) = begin
+    messages = []
+    # find the detector translation based on the idea that it will
+    # be a translation axis directly dependent on 2 theta
+    axes = get_loop(incif,"_axis.id")
+    tt = filter(axes) do r
+        getproperty(r,"_axis.equipment")==    "detector" && getproperty(r,"_axis.type")==     "rotation" &&  getproperty(r,"_axis.depends_on")==nothing
+    end
+    if size(tt,1) != 1
+        return [(true,"Warning: can't identify two theta axis $tt")]
+    end
+    axname = getproperty(tt,"_axis.id")[]
+    det = filter(axes) do r
+            getproperty(r,"_axis.equipment") == "detector" && getproperty(r,"_axis.type") == "translation" && getproperty(r,"_axis.depends_on") == axname
+    end
+    if size(det,1) != 1
+        return [(true,"Warning: can't identify detector translation axis $det")]
+    end
+    det = first(det)
+    # check that translation is negative Z
+    signv = sign(parse(Float64,getproperty(det,"_axis.vector[3]")))
+    signo = signv*parse(Float64,getproperty(det,"_axis.offset[3]"))
+    if signo == 1
+        push!(messages,(false,"Detector translation $axname is positive"))
+    end
+    if signv == 1
+        push!(messages,(false,"Detector translation axis $axname points towards the source"))
+    end
+    av1 = parse(Float64,getproperty(det,"_axis.vector[1]"))
+    av2 = parse(Float64,getproperty(det,"_axis.vector[2]"))
+    if av1 != 0 || av2 != 0
+        push!(messages,(false,"Detector translation is not parallel to beam"))
     end
     return messages
 end
@@ -123,7 +170,7 @@ const img_types = Dict(UInt8 =>"unsigned 8-bit integer",
                        ComplexF32 =>"signed 32-bit complex IEEE"
                        )
 
-@imgcheck img_dims(incif,img,img_id) = begin
+@imgcheck "Image type and dimensions" img_dims(incif,img,img_id) = begin
     messages = []
     fast_pixels = size(img)[1]
     slow_pixels = size(img)[2]
@@ -135,7 +182,7 @@ const img_types = Dict(UInt8 =>"unsigned 8-bit integer",
     if dims[slow_pos] != slow_pixels
         push!(messages,(false,"Stated slow dimension $slow_pos does not match actual image dimension $slow_pixels"))
     end
-    if img_types[eltype(img)] != incif["_array_structure.encoding_type"][1]
+    if haskey(incif,"_array_structure.encoding_type") && img_types[eltype(img)] != incif["_array_structure.encoding_type"][1]
         push!(messages,(false,"Stated encoding $(incif["_array_structure.encoding_type"][1]) does not match array element type $(eltype(img))"))
     end
     if haskey(incif,"_array_structure.byte_order") && haskey(incif,"_array_data.external_format")
@@ -148,10 +195,10 @@ const img_types = Dict(UInt8 =>"unsigned 8-bit integer",
 end
 
 verdict(msg_list) = begin
-    ok = true
+    ok = reduce((x,y)-> x[1] & y[1],msg_list;init=true)
+    println(ok ? "PASS" : "FAIL")
     for (isok,message) in msg_list
-        ok = ok && isok
-        println(message)
+        println("   "*message)
     end
     return ok
 end
@@ -167,8 +214,10 @@ display_check_image(im;logscale=true,cut_ratio=1000) = begin
     clamp_low,clamp_high = find_best_cutoff(im,cut_ratio=cut_ratio)
     alg = LinearStretching(src_maxval = clamp_high)
     im_new = adjust_histogram(im,alg)
-    println("Max, min for adjusted image: $(maximum(im_new)), $(minimum(im_new))")
+    println("Image for checking")
+    #println("Max, min for adjusted image: $(maximum(im_new)), $(minimum(im_new))\n")
     imshow(Gray.(im_new))
+    println("\n")
     return im_new
 end
 
@@ -202,7 +251,7 @@ find_best_cutoff(im;cut_ratio=1000) = begin
     end
     maxval = first(edges) + maxbin*step(edges)
     minval = first(edges) + maxpos*step(edges)
-    println("Min,max $minval($maxpos),$maxval($maxbin)")
+    #println("Min,max $minval($maxpos),$maxval($maxbin)")
     return minval,maxval
 end
 
@@ -212,15 +261,19 @@ end
 
 ==#
 
-run_img_checks(incif;no_images=true) = begin
+run_img_checks(incif;images=false,always=false) = begin
     ok = true
-    for one_test in test_list
-        println("\n$(nameof(one_test)):")
-        ok = ok && verdict(one_test(incif))
+    println("Running checks (no image download)")
+    println("="^40*"\n")
+    for (desc,one_test) in test_list
+        print("\nTesting: $desc: ")
+        ok = ok & verdict(one_test(incif))
     end
     testimage = [[]]  # for consistency
-    if length(test_list_with_img) > 0 && ok && !no_images
+    if length(test_list_with_img) > 0 && ((ok && images) || always)
         testimage = [[]]
+        println("\nRunning checks with downloaded images")
+        println("="^40*"\n")
         load_id = incif["_array_data.binary_id"][1]
         try
             testimage = imgload(incif,load_id)
@@ -229,9 +282,9 @@ run_img_checks(incif;no_images=true) = begin
             rethrow()
         end
         display_check_image(testimage,logscale=false)
-        for one_test in test_list_with_img
-            println("\n$(nameof(one_test)):")
-            ok = ok && verdict(one_test(incif,testimage,load_id))
+        for (desc,one_test) in test_list_with_img
+            print("\nTesting image $load_id: $desc: ")
+            ok = ok & verdict(one_test(incif,testimage,load_id))
         end
     end
     return (ok,testimage)
@@ -240,8 +293,11 @@ end
 parse_cmdline(d) = begin
     s = ArgParseSettings(d)
     @add_arg_table! s begin
-        "-i" "--check-images"
+        "-i", "--check-images"
         help = "Also perform checks on the images"
+        nargs = 0
+        "-j", "--always-check-images"
+        help = "Check images even if non-image checks fail"
         nargs = 0
         "filename"
         help = "Name of imgCIF data file to check"
@@ -255,15 +311,20 @@ end
 
 if abspath(PROGRAM_FILE) == @__FILE__
     parsed_args = parse_cmdline("Check contents of imgCIF files")
-    println("$parsed_args")
+    #println("$parsed_args")
     incif = Cif(Path(parsed_args["filename"]))
     if isnothing(parsed_args["blockname"])
         blockname = first(incif).first
     else
         blockname = parsed_args["blockname"]
     end
-    println("Checking block $blockname in $(incif.original_file)")
-    result,img = run_img_checks(incif[blockname],no_images=!parsed_args["check-images"])
+    println("\n ImgCIF checker version 0.1\n")
+    println("Checking block $blockname in $(incif.original_file)\n")
+    result,img = run_img_checks(incif[blockname],
+                                images=parsed_args["check-images"],
+                                always=parsed_args["always-check-images"]
+                                )
+    println("\n====End of Checks====")
     if result exit(0) else exit(1) end
 end
 

@@ -19,15 +19,15 @@ cbf_make_handle() = begin
     finalizer(cbf_free_handle!,handle)
     err_no = ccall((:cbf_make_handle,"libcbf"),Cint,(Ref{CBF_Handle},),handle)
     cbf_error(err_no)
-    println("Our handle is $(handle.handle)")
+    #println("Our handle is $(handle.handle)")
     return handle
 end
 
 cbf_free_handle!(handle::CBF_Handle) = begin
     q = time_ns()
-    error_string = "$q: Finalizing CBF Handle $(handle.handle)"
-    t = @task println(error_string)
-    schedule(t)
+    #error_string = "$q: Finalizing CBF Handle $(handle.handle)"
+    #t = @task println(error_string)
+    #schedule(t)
     err_no = ccall((:cbf_free_handle,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},),handle.handle)
     cbf_error(err_no, extra = "while finalising")
     return 0
@@ -38,7 +38,7 @@ cbf_read_file(filename) = begin
     f = open(filename,"r")
     fptr = Base.Libc.FILE(f)
     flags = 0
-    println("Our file pointer is $fptr")
+    #println("Our file pointer is $fptr")
     err_no = ccall((:cbf_read_file,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},FILE,Cint),handle.handle,fptr,flags)
     cbf_error(err_no, extra = "while trying to read $filename")
     return handle
@@ -79,12 +79,12 @@ cbf_get_arraysize(handle) = begin
               , handle.handle,compression, bid, elsize,elsigned,elunsigned,
               elements,minelem, maxelem, isreal, byteorder,fast,mid,slow,padding)
     cbf_error(err_no, extra = "while trying to get array size")
-    println("Compression type $(compression[]) for binary id $(bid[])")
-    println("elements = $(elements[]) of size $(elsize[])")
-    println("Dims $(fast[]) x $(mid[]) x $(slow[])")
-    println("Is real? $(isreal[])")
+    #println("Compression type $(compression[]) for binary id $(bid[])")
+    #println("elements = $(elements[]) of size $(elsize[])")
+    #println("Dims $(fast[]) x $(mid[]) x $(slow[])")
+    #println("Is real? $(isreal[])")
     bo = @GC.preserve unsafe_string(byteorder[])
-    println("Check: byte order is $bo")
+    #println("Check: byte order is $bo")
     if isreal[] != 0    # real numbers
         if elsize[] == 4
             elt = Float32
@@ -120,7 +120,7 @@ cbf_get_realarray(handle,data_array) = begin
                     Ref{Csize_t}
                     ),handle.handle,bid,data_array,elsize,fast*mid,num_read)
     cbf_error(err_no, extra = "while reading in array")
-    println("Read in $(num_read[]) values")
+    #println("Read in $(num_read[]) values")
     return num_read[]
 end
 
@@ -141,7 +141,7 @@ cbf_get_integerarray(handle,data_array) = begin
                     Ref{Csize_t}
                     ),handle.handle,bid,data_array,elsize,is_signed,fast*mid,num_read)
     cbf_error(err_no, extra = "while reading in array")
-    println("Read in $(num_read[]) values")
+    #println("Read in $(num_read[]) values")
     return num_read[]
 end
 

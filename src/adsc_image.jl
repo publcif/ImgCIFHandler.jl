@@ -10,10 +10,11 @@ imgload(filename::AbstractString,::Val{:SMV};path=nothing,frame=nothing) = begin
     dim1 = header["size1"]
     dim2 = header["size2"]
     seek(loc,header["header_bytes"])
-    binary = read(loc,nb=2*dim1*dim2)  #Sequence of UInt8
+    binary = read(loc,2*dim1*dim2)  #Sequence of UInt8
     if haskey(header,"bitmapsize")
-        bmap = read_bitmap(loc,header)
-        data = apply_bitmap(better,bmap)
+        println("Bitmap present, ignored")
+        #bmap = read_bitmap(loc,header)
+        #data = apply_bitmap(better,bmap)
     end
     better = reinterpret(UInt16,binary)
     # get the endianness right
