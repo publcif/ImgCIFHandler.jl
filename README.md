@@ -15,6 +15,8 @@ itself.
 You must have [CBFLib](https://github.com/yayahjb/cbflib) installed. Packages exist for some Linux distributions,
 e.g. `libcbf1` on Debian and Ubuntu.
 
+The programs `tar` and `curl` must be installed, as well as `gzip` and `bunzip2`.
+
 ## Installation
 
 To install this package, at the Julia package prompt (reached by typing `]` at the Julia prompt) type `add https://github.com/jamesrhester/ImgCIFHandler.jl`.
