@@ -20,7 +20,7 @@ in the future.
 
 ## Installation
 
-To install this package, at the Julia package prompt (reached by typing `]` at the Julia prompt) type `add ImgCIFHandler.jl`.
+To install this package, at the Julia package prompt (reached by typing `]` at the Julia prompt) type `add ImgCIFHandler`.
 
 # Use
 
