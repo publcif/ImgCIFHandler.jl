@@ -106,7 +106,7 @@ imgload_os(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compres
         temp_local = joinpath(loc,"temp_download")
         push!(cmd_list, `curl $uri -o $temp_local`)
     end
-    #println("Command list is $cmd_list")
+    @debug "Command list is $cmd_list"
     try
         run(pipeline(cmd_list...))
     catch exc

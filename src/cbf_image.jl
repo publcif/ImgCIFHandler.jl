@@ -1,6 +1,13 @@
 # Load in the image part of a CBF file, ignoring all else
 import Base.Libc:FILE
 
+using CBFlib_small_jll
+# Comment out the above line and
+# uncomment below to use your locally installed libcbf instead
+# of that provided by CBFlib_small_jll
+
+#const libcbf="libcbf"  #
+
 # libcbf routines that we need
 #
 # libcbf expects the address of a cbf_handle_struct *
@@ -17,7 +24,7 @@ end
 cbf_make_handle() = begin
     handle = CBF_Handle(0)
     finalizer(cbf_free_handle!,handle)
-    err_no = ccall((:cbf_make_handle,"libcbf"),Cint,(Ref{CBF_Handle},),handle)
+    err_no = ccall((:cbf_make_handle,libcbf),Cint,(Ref{CBF_Handle},),handle)
     cbf_error(err_no)
     #println("Our handle is $(handle.handle)")
     return handle
@@ -28,7 +35,7 @@ cbf_free_handle!(handle::CBF_Handle) = begin
     #error_string = "$q: Finalizing CBF Handle $(handle.handle)"
     #t = @task println(error_string)
     #schedule(t)
-    err_no = ccall((:cbf_free_handle,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},),handle.handle)
+    err_no = ccall((:cbf_free_handle,libcbf),Cint,(Ptr{CBF_Handle_Struct},),handle.handle)
     cbf_error(err_no, extra = "while finalising")
     return 0
 end
@@ -39,7 +46,7 @@ cbf_read_file(filename) = begin
     fptr = Base.Libc.FILE(f)
     flags = 0
     #println("Our file pointer is $fptr")
-    err_no = ccall((:cbf_read_file,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},FILE,Cint),handle.handle,fptr,flags)
+    err_no = ccall((:cbf_read_file,libcbf),Cint,(Ptr{CBF_Handle_Struct},FILE,Cint),handle.handle,fptr,flags)
     cbf_error(err_no, extra = "while trying to read $filename")
     return handle
 end
@@ -59,7 +66,7 @@ cbf_get_arraysize(handle) = begin
     mid = Ref{Csize_t}(0)
     slow = Ref{Csize_t}(0)
     padding = Ref{Csize_t}(0)
-    err_no = ccall((:cbf_get_arrayparameters_wdims,"libcbf"),Cint,
+    err_no = ccall((:cbf_get_arrayparameters_wdims,libcbf),Cint,
               (Ptr{CBF_Handle_Struct},
                Ref{Cuint}, #compression
                Ref{Cint}, #binary_id
@@ -111,7 +118,7 @@ cbf_get_realarray(handle,data_array) = begin
     num_read = Ref{Csize_t}(0)
     fast,mid = size(data_array)
     elsize = sizeof(eltype(data_array))
-    err_no = ccall((:cbf_get_realarray,"libcbf"),Cint,
+    err_no = ccall((:cbf_get_realarray,libcbf),Cint,
                    (Ptr{CBF_Handle_Struct},
                     Ref{Cint}, #binary id
                     Ptr{Float64},
@@ -131,7 +138,7 @@ cbf_get_integerarray(handle,data_array) = begin
     elt = eltype(data_array)
     elsize = sizeof(elt)
     is_signed = Ref{Cint}(signed(elt) == elt ? 1 : 0)
-    err_no = ccall((:cbf_get_integerarray,"libcbf"),Cint,
+    err_no = ccall((:cbf_get_integerarray,libcbf),Cint,
                    (Ptr{CBF_Handle_Struct},
                     Ref{Cint}, #binary id
                     Ptr{Float64},
@@ -153,11 +160,11 @@ frame.
 """
 imgload(filename::AbstractString,::Val{:CBF};path=nothing,frame=nothing) = begin
     handle = cbf_read_file(filename)
-    err_no = ccall((:cbf_find_category,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},Cstring),handle.handle,"array_data")
+    err_no = ccall((:cbf_find_category,libcbf),Cint,(Ptr{CBF_Handle_Struct},Cstring),handle.handle,"array_data")
     cbf_error(err_no, extra = "while searching for array_data")
-    err_no = ccall((:cbf_find_column,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},Cstring),handle.handle,"data")
+    err_no = ccall((:cbf_find_column,libcbf),Cint,(Ptr{CBF_Handle_Struct},Cstring),handle.handle,"data")
     cbf_error(err_no, extra = "while searching for data column")
-    err_no = ccall((:cbf_rewind_row,"libcbf"),Cint,(Ptr{CBF_Handle_Struct},),handle.handle)
+    err_no = ccall((:cbf_rewind_row,libcbf),Cint,(Ptr{CBF_Handle_Struct},),handle.handle)
     cbf_error(err_no)
     # Find the dimensions of the array
     total_size,elt,fast,mid,slow = cbf_get_arraysize(handle)
