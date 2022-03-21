@@ -29,6 +29,9 @@ For example, to read the raw data array labelled `ext1` in `b4_master.cif` the f
 x = imgload("b4_master.cif","ext1")
 ```
 
+Note that this command will only work if the images referred to in `b4_master.cif` actually exist. To create those files locally, unpack the 
+`b4_mini.tar.bz2` contents into location `test/testfiles/test_cbf_unzipped`.
+
 # Supported external formats
 
 This release supports `HDF5`, `CBF`, and `SMV` (ADSC) formats, as well as Tar archives (optionally compressed using Bzip2 or Gzip) or 
