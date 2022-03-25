@@ -59,8 +59,7 @@ end
                   "_diffrn_radiation_wavelength.id",
                   "_diffrn_radiation_wavelength.value",
                   "_diffrn_radiation.type",
-                  "_array_data.array_id",
-                  "_array_data.binary_id")
+                  "_array_data.array_id")
     for ic in info_check
         if !haskey(incif,ic)
             push!(messages,(false,"Required item $ic is missing"))
