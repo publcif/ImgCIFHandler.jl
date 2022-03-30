@@ -137,17 +137,19 @@ end
             getproperty(r,"_axis.equipment") == "detector" && getproperty(r,"_axis.type") == "translation" && getproperty(r,"_axis.depends_on") == axname
     end
     if size(det,1) != 1
-        return [(true,"Warning: can't identify detector translation axis $det")]
+        detnames = getproperty(det,"_axis.id")
+        return [(true,"Warning: can't identify detector translation axis, have $detnames")]
     end
     det = first(det)
+    detname = getproperty(det,"_axis.id")
     # check that translation is negative Z
     signv = sign(parse(Float64,getproperty(det,"_axis.vector[3]")))
     signo = signv*parse(Float64,getproperty(det,"_axis.offset[3]"))
     if signo == 1
-        push!(messages,(false,"Detector translation $axname is positive"))
+        push!(messages,(false,"Detector translation $detname is positive"))
     end
     if signv == 1
-        push!(messages,(false,"Detector translation axis $axname points towards the source"))
+        push!(messages,(false,"Detector translation axis $detname points towards the source"))
     end
     av1 = parse(Float64,getproperty(det,"_axis.vector[1]"))
     av2 = parse(Float64,getproperty(det,"_axis.vector[2]"))
