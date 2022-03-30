@@ -12,9 +12,6 @@ itself.
 
 ## Prerequisites
 
-You must have [CBFLib](https://github.com/yayahjb/cbflib) installed. Packages exist for some Linux distributions,
-e.g. `libcbf1` on Debian and Ubuntu.
-
 The programs `tar` and `curl` must be installed, as well as `gzip` and `bunzip2`. This requirement may be removed
 in the future.
 
@@ -31,6 +28,9 @@ For example, to read the raw data array labelled `ext1` in `b4_master.cif` the f
 ```julia
 x = imgload("b4_master.cif","ext1")
 ```
+
+Note that this command will only work if the images referred to in `b4_master.cif` actually exist. To create those files locally, unpack the 
+`b4_mini.tar.bz2` contents into location `test/testfiles/test_cbf_unzipped`.
 
 # Supported external formats
 
