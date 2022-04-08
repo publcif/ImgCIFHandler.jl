@@ -29,6 +29,8 @@ using URIs
 using SimpleBufferStream
 
 export imgload         #Load raw data
+export peek_image      #Find first image in archive
+export make_absolute_uri #Use Cif block contents to make absolute URI
 
 include("hdf_image.jl")
 include("cbf_image.jl")
@@ -42,8 +44,9 @@ end
     imgload(c::Block,array_id)
 
 Return the image referenced in CIF Block `c` corresponding to the specified raw array identifier.
+`local_version` gives local copies for URLs listed in `c`.
 """
-imgload(c::CifContainer,frame_id) = begin
+imgload(c::CifContainer,frame_id;local_version=Dict()) = begin
     cat = "_array_data"   #for convenience
     ext_loop = get_loop(c,"$cat.binary_id")
     if !("$cat.external_format" in names(ext_loop))
@@ -68,22 +71,26 @@ imgload(c::CifContainer,frame_id) = begin
     ext_comp = "$cat.external_compression" in all_cols ? info["$cat.external_compression"] : nothing
     ext_ap = "$cat.external_archive_path" in all_cols ? info["$cat.external_archive_path"] : nothing
     ext_frame = "$cat.external_frame" in all_cols ? info["$cat.external_frame"] : nothing
+    local_copy =  get(info,"$cat.external_location_uri", nothing)
     imgload(full_uri,
             ext_format;
             arch_type = ext_comp,
             arch_path = ext_ap,
             path = ext_loc,
-            frame = ext_frame
+            frame = ext_frame,
+            local_copy = local_copy
             )
 end
 
 """
-    imgload(uri,format;arch_type=nothing,arch_path=nothing,file_compression=nothing,frame=1)
+    imgload(uri,format;arch_type=nothing,arch_path=nothing,file_compression=nothing,
+            frame=1,local_copy=nothing)
 
 Return the raw 2D data found at `uri`, which may have been optionally
 compressed into an archive of format `compressed` with internal
 archive path to the data of `arch_path`. The object thus referenced
-has `format` and the target frame is `frame`.
+has `format` and the target frame is `frame`. `local_copy` is a local copy of
+`uri`, if present.
 
 """
 imgload(uri::URI,format::Val;kwargs...) = begin
@@ -91,7 +98,7 @@ imgload(uri::URI,format::Val;kwargs...) = begin
     imgload_os(uri,format;kwargs...)
 end
 
-imgload_os(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compression=nothing,kwargs...) = begin
+imgload_os(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compression=nothing,local_copy = nothing,kwargs...) = begin
     # Use OS pipelines to download efficiently
     cmd_list = Cmd[]
     loc = mktempdir()
@@ -99,18 +106,28 @@ imgload_os(uri::URI,format::Val;arch_type=nothing,arch_path=nothing,file_compres
     if arch_type == "TGZ" decomp_option = "-z" end
     if arch_type == "TBZ" decomp_option = "-j" end
     if arch_type in ("TGZ","TBZ","TAR")
-        push!(cmd_list, `curl -s $uri`)
+        if local_copy == nothing
+            push!(cmd_list, Cmd(`curl -s $uri`,ignorestatus=true))
+        else
+            push!(cmd_list, `cat $local_copy`)
+        end
         push!(cmd_list, `tar -C $loc -x $decomp_option -f - --occurrence $arch_path`)
         temp_local = joinpath(loc,arch_path)
     else
-        temp_local = joinpath(loc,"temp_download")
-        push!(cmd_list, `curl $uri -o $temp_local`)
+        if local_copy == nothing
+            temp_local = joinpath(loc,"temp_download")
+            push!(cmd_list, `curl $uri -o $temp_local`)
+        else
+            temp_local = local_copy
+        end
     end
     @debug "Command list is $cmd_list"
-    try
-        run(pipeline(cmd_list...))
-    catch exc
-        @debug "Finished downloading" exc
+    if length(cmd_list) > 0
+        try
+            run(pipeline(cmd_list...))
+        catch exc
+            @debug "Finished downloading" exc
+        end
     end
     # Now the final file is in $temp_local
     if arch_type == "ZIP"   #has been downloaded to local storage
@@ -331,6 +348,54 @@ list_archive(u::URI;n=5,compressed=nothing) = begin
             end
         end
     end
+end
+
+"""
+    peek_image(URI,archive_type,cif_block::CifContainer;entry_no=0)
+
+Find the name of the first image in archive of type `archive_type` at `URL`, searching
+from entry number `entry_no`,and check that this image is available in `cif_block`
+if `check_name` is true.
+"""
+peek_image(uri::URI,arch_type,cif_block::CifContainer;entry_no=0,check_name=true) = begin
+
+    cmd_list = Cmd[]
+    
+    if arch_type == "ZIP"
+        throw(error("Peeking into file not supported for ZIP"))
+    end
+    
+    decomp_option = ""
+    if arch_type == "TGZ" decomp_option = "-z"
+    elseif arch_type == "TBZ" decomp_option = "-j"
+    else throw(error("Unrecognised archive type $arch_type"))
+    end
+
+    push!(cmd_list, Cmd(`curl -s $uri`,ignorestatus=true))
+    push!(cmd_list, `tar -t -v $decomp_option -f -`)
+    awkstr =  "\$3 + 0 > 0 && FNR >= $entry_no { print \$NF; exit }"
+    push!(cmd_list, `awk $awkstr`)
+
+    @debug "Peeking into $uri for $arch_type starting at $entry_no"
+    @debug "Command list is $cmd_list"
+    fname = nothing
+    try
+        fname = readchomp(pipeline(cmd_list...))
+    catch exc
+        @debug "Finished downloading" exc
+    end
+
+    @debug fname
+    if fname != nothing && check_name
+        if haskey(cif_block,"_array_data.external_archive_path")
+            pos = indexin([fname],cif_block["_array_data.external_archive_path"])[]
+            if pos != nothing && cif_block["_array_data.external_location_uri"][pos] == "$uri"
+                return fname
+            end
+        end
+        return nothing
+    end
+    return fname
 end
 
 end  #of module
