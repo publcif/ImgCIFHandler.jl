@@ -12,7 +12,7 @@ itself.
 
 ## Prerequisites
 
-The programs `tar` and `curl` must be installed, as well as `gzip` and `bunzip2`. This requirement may be removed
+The programs `tar`, `curl` and `awk` must be available in the environment, as well as `gzip` and `bunzip2`. This requirement may be removed
 in the future.
 
 ## Installation
