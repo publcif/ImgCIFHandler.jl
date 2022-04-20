@@ -44,6 +44,8 @@ jobs:
         run: |
                 pwd
                 mkdir test/testfiles/test_cbf_unzipped
-                cd test/testfiles/test_cbf_unzipped
+                pushd test/testfiles/test_cbf_unzipped
                 tar -xjvf ../b4_mini.tar.bz2
-                julia --project=tools image_test.jl test/testfiles/b4_master.cif
+                popd
+                julia --project=tools -e 'Pkg.add(".")'
+                julia --project=tools tools/image_tests.jl test/testfiles/b4_master.cif
