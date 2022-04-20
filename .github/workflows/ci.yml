@@ -47,4 +47,5 @@ jobs:
                 pushd test/testfiles/test_cbf_unzipped
                 tar -xjvf ../b4_mini.tar.bz2
                 popd
+                julia --project=tools -e 'Pkg.add(".")'
                 julia --project=tools tools/image_tests.jl test/testfiles/b4_master.cif
