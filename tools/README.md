@@ -16,7 +16,7 @@ For help, run `julia image_test.jl --help` after installation.
 The first time `image_test.jl` is run, several minutes will be occupied with downloading and 
 installing all supporting Julia packages. Subsequent runs will be much faster.
 
-Note the "--sub <original_url> <local_file>" option (which may be repeated for multiple
+Note the `--sub <original_url> <local_file>` option (which may be repeated for multiple
 urls) which links a local file with a remote URL that may be present in the imgCIF file
 being checked. This
 allows interactive preparation and checking of imgCIF descriptions and archive files without 
