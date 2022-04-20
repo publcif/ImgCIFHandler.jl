@@ -5,7 +5,7 @@ import Pkg
 Pkg.activate(@__DIR__)
 Pkg.instantiate()
 
-using ImgCIFHandler
+using ImgCIFHandler#main
 using ImageInTerminal, Colors,ImageContrastAdjustment
 using ArgParse
 using CrystalInfoFramework,FilePaths,URIs, Tar
