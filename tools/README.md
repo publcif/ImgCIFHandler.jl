@@ -6,17 +6,22 @@ This program runs a series of tests on an imgCIF file.
 
 ### Installation
 
-1. If working with CBF files, install [cbflib](https://github.com/yayahjb/cbflib): see installation instructions for cbflib. If
-on a Linux system, a pre-packaged version is likely available. For example, on Debian/Ubuntu, `apt-get install libcbf1` is
-sufficient.
-2. [Install Julia](https://julialang.org/downloads)
-3. Start Julia, at the prompt type `]` to get the package manager
-4. Install prerequisite packages by typing `add <packagename>`. You will need to add `CrystalInfoFramework`,
-`Sixel`,`ImageInTerminal`, `Colors` , `ImageContrastAdjustment`,`ArgParse` and `URIs`.
-5. Install `ImgCIFHandler`: still at the package prompt, type `add https://github.com/jamesrhester/ImgCIFHandler.jl`
-6. Exit the package manager (`backspace`) and then Julia (`Ctrl-D` or `exit()`).
-7. Copy `image_test.jl` from here to a convenient location.
+1. [Install Julia](https://julialang.org/downloads) if you don't already have it.
+2. Copy `image_test.jl` and `Project.toml` from here to a convenient directory.
 
 ### Usage
 
-For help, run `julia image_test.jl --help` after installation.
+For help, run `julia image_test.jl --help` after installation. 
+
+The first time `image_test.jl` is run, several minutes will be occupied with downloading and 
+installing all supporting Julia packages. Subsequent runs will be much faster.
+
+Note the "--sub <original_url> <local_file>" option (which may be repeated for multiple
+urls) which links a local file with a remote URL that may be present in the imgCIF file
+being checked. This
+allows interactive preparation and checking of imgCIF descriptions and archive files without 
+needing to download the whole archive each time the program is run.
+
+### Updating
+
+Overwrite `image_test.jl` and `Project.toml` from step 2 above with the latest copies from here.
