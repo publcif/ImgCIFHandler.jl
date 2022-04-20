@@ -8,7 +8,7 @@ Pkg.instantiate()
 using ImgCIFHandler
 using ImageInTerminal, Colors,ImageContrastAdjustment
 using ArgParse
-using CrystalInfoFramework,FilePaths,URIs
+using CrystalInfoFramework,FilePaths,URIs, Tar
 
 # Tests for imgCIF files
 const test_list = []
@@ -218,13 +218,26 @@ end
 #######################################################################################
 """
     Download all archives listed in `incif`, returning a dictionary {url -> local file}.
-    If `download` is false, just start the download and abort as soon as a file is found.
+    If `get_full` is false, just start the download and abort as soon as a file is found.
+    `subs` is a dictionary of local file equivalents to urls.
 """
-download_archives(incif;get_full=false,pick=1) = begin
+download_archives(incif;get_full=false,pick=1,subs=Dict()) = begin
     urls = unique(incif["_array_data.external_location_uri"])
+    if !isempty(subs)
+        for u in urls
+            if !(u in keys(subs))
+                throw(error("No local file substitution found for $u; have $(keys(subs)) only"))
+            end
+        end
+        if get_full return subs end
+    end
     result_dict = Dict{String,String}()
     for u in urls
-        loc = URI(make_absolute_uri(incif,u))
+        if !isempty(subs)
+            loc = URI("file://"*subs[u])
+        else
+            loc = URI(make_absolute_uri(incif,u))
+        end
         pos = indexin([u],incif["_array_data.external_location_uri"])[]
         arch_type = nothing
         if haskey(incif,"_array_data.external_compression")
@@ -237,7 +250,8 @@ download_archives(incif;get_full=false,pick=1) = begin
             catch exn
                 @debug "Peeking into $u gave error:" exn
             end
-            result_dict[u] = x
+            @debug "Got $x for $u"
+            result_dict[u] = x == nothing ? "" : x
         elseif get_full
             result_dict[u] = Downloads.download(u)
         else
@@ -279,9 +293,10 @@ find_load_id(incif,archive_list,have_full) = begin
     # First see if our frame is in the file
 
     if !have_full
+        @debug archive_list
         for (k,v) in archive_list
             if v in known_paths
-                pos = indexin([v],known_paths)
+                pos = indexin([v],known_paths)[]
                 return incif["_array_data.binary_id"][pos]
             end
         end
@@ -289,6 +304,7 @@ find_load_id(incif,archive_list,have_full) = begin
         throw(error("Sample image not found, try full archive (option -f)"))
     end
 
+    # Get a list of all archive members
     
 end
 
@@ -359,7 +375,7 @@ end
 
 ==#
 
-run_img_checks(incif;images=false,always=false,full=false,connected=false,pick=1) = begin
+run_img_checks(incif;images=false,always=false,full=false,connected=false,pick=1,subs=Dict()) = begin
     ok = true
     println("Running checks (no image download)")
     println("="^40*"\n")
@@ -373,9 +389,12 @@ run_img_checks(incif;images=false,always=false,full=false,connected=false,pick=1
     
     # Test archive access
 
-    all_archives = download_archives(incif;get_full=full,pick=pick)
+    println("Testing presence of archive:")
+    
+    all_archives = download_archives(incif;get_full=full,pick=pick,subs=subs)
 
     print("\nTesting: All archives are accessible: ")
+    
     ok = ok & verdict(test_archive_present(all_archives))
     
     # Test with an image
@@ -390,10 +409,10 @@ run_img_checks(incif;images=false,always=false,full=false,connected=false,pick=1
         load_id = find_load_id(incif,all_archives,full)
         
         try
-            if have_full
+            if full
                 testimage = imgload(incif,load_id;local_version=all_archives)
             else
-                testimage = imgload(incif,load_id)
+                testimage = imgload(incif,load_id;local_version=subs)
             end
         catch e
             verdict([(false,"Unable to access image $load_id: $e")])
@@ -434,9 +453,14 @@ parse_cmdline(d) = begin
         nargs = 0
         "-p", "--pick"
         nargs = 1
-        default = 1
+        default = [1]
         arg_type = Int64
         help = "Use this entry number in the archive for checking"
+        "-s", "--sub"
+        nargs = 2
+        metavar = ["original","local"]
+        action = "append_arg"
+        help = "Use <local> file in place of URI <original> (for testing). Use -f to access whole file. All URIs in <filename> must be provided, option may be used multiple times"
         "filename"
         help = "Name of imgCIF data file to check"
         required = true
@@ -456,6 +480,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     else
         blockname = parsed_args["blockname"]
     end
+    subs = Dict(parsed_args["sub"])
     println("\n ImgCIF checker version 0.2\n")
     println("Checking block $blockname in $(incif.original_file)\n")
     result,img = run_img_checks(incif[blockname],
@@ -463,7 +488,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
                                 always=parsed_args["always-check-images"],
                                 full = parsed_args["full-download"],
                                 connected = !parsed_args["no-internet"],
-                                pick = parsed_args["pick"][]
+                                pick = parsed_args["pick"][],
+                                subs = subs
                                 )
     println("\n====End of Checks====")
     if result exit(0) else exit(1) end

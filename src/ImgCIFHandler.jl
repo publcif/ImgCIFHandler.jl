@@ -72,6 +72,10 @@ imgload(c::CifContainer,frame_id;local_version=Dict()) = begin
     ext_ap = "$cat.external_archive_path" in all_cols ? info["$cat.external_archive_path"] : nothing
     ext_frame = "$cat.external_frame" in all_cols ? info["$cat.external_frame"] : nothing
     local_copy =  get(info,"$cat.external_location_uri", nothing)
+    if !isnothing(local_copy)
+        local_copy = get(local_version,local_copy,nothing)
+        @debug "Loading image from $local_copy"
+    end
     imgload(full_uri,
             ext_format;
             arch_type = ext_comp,
@@ -293,44 +297,62 @@ end
 """
     list_archive(uri;n=5)
 
-Given an archive `uri`, list the first `n` members.
+Given an archive `uri`, list the first `n` members. A negative
+number for `n` lists all members. Uses `SimpleBufferStream`.
 """
 list_archive(u::URI;n=5,compressed=nothing) = begin
     counter = 1
-    # Set up input stream
-    stream = Pipe()
-    # Initialise for blocking input/output
-    Base.link_pipe!(stream)  #Not a public API (yet)
 
-    @sync begin
-        @async try
-            Downloads.download("$u",stream;verbose=true)
-        catch exc
-            if counter < n
-                @error "Problem downloading $uri" exc
+    # Set up chain of streams
+
+    dldstream = BufferStream()
+    unzipstream = BufferStream()
+    untarstream = BufferStream()
+
+    # Our header information
+
+    hdrs = nothing
+
+    function task_chain(in_str,out_str)
+        @async begin
+            while !eof(in_str)
+                write(out_str, readavailable(in_str))
             end
-        finally
-            close(stream)
+            close(out_str)
         end
-
-        decomp = stream
-        if !(compressed in (nothing,"TAR"))
-            if compressed == "TGZ"
-                decomp = GzipDecompressorStream(stream)
-            elseif compressed == "TBZ"
-                decomp = Bzip2DecompressorStream(stream)
+    end
+    
+    function do_dld(out_stream)
+        @async begin
+            try
+                Downloads.download("$u",outstream;verbose=true)
+            catch exc
+                if counter < n
+                    @error "Problem downloading $uri" exc
+                end
+            finally
+                close(outstream)
             end
         end
-        
-        # Now handle having an internal directory structure
+    end
 
-        if compressed in ("TGZ","TBZ","TAR")
+    if !(compressed in (nothing,"TAR"))
+        if compressed == "TGZ"
+            decomp = GzipDecompressorStream(in_stream)
+        elseif compressed == "TBZ"
+            decomp = Bzip2DecompressorStream(in_stream)
+        end
+    end        
+
+    # Now handle having an internal directory structure
+    
+    if compressed in ("TGZ","TBZ","TAR")
 
             # callback to abort after listing
 
             abort_callback(x) = begin
                 counter = counter + 1
-                if counter > n
+                if if n > 0 && counter > n
                     throw(error("Made it to $n"))
                 end
                 @info(x)
@@ -338,7 +360,7 @@ list_archive(u::URI;n=5,compressed=nothing) = begin
             end
 
             @async try
-                loc = Tar.list(abort_callback,decomp)
+                hdrs = Tar.list(abort_callback,decomp)
             catch exc
                 if counter < n
                     @error "Untar problem" exc
@@ -348,6 +370,7 @@ list_archive(u::URI;n=5,compressed=nothing) = begin
             end
         end
     end
+    return hdrs
 end
 
 """
@@ -373,8 +396,9 @@ peek_image(uri::URI,arch_type,cif_block::CifContainer;entry_no=0,check_name=true
 
     push!(cmd_list, Cmd(`curl -s $uri`,ignorestatus=true))
     push!(cmd_list, `tar -t -v $decomp_option -f -`)
-    awkstr =  "\$3 + 0 > 0 && FNR >= $entry_no { print \$NF; exit }"
-    push!(cmd_list, `awk $awkstr`)
+    awkstr1 =  "\$3 > 0 { print \$NF }"
+    awkstr2 =  "\$3 > 0 && FNR >= $entry_no { exit }"
+    push!(cmd_list, `awk -e $awkstr1 -e $awkstr2`)
 
     @debug "Peeking into $uri for $arch_type starting at $entry_no"
     @debug "Command list is $cmd_list"
@@ -398,4 +422,6 @@ peek_image(uri::URI,arch_type,cif_block::CifContainer;entry_no=0,check_name=true
     return fname
 end
 
-end  #of module
+peek_image(u::URI,arch_type) = peek_image(u,arch_type,Block{String}())  #for testing
+
+end
