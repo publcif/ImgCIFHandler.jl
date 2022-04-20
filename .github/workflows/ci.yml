@@ -36,23 +36,14 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.julia-version }}
-      - name: "Install Libcbf in accessible spot"
-        # Note that this is fragile in that it assumes the libhdf5 package name
-        run: |
-            apt-get download libcbf1; dpkg-deb -x libcbf1* extralibs
-            apt-get download libhdf5-103; dpkg-deb -x libhdf5* extralibs
-            apt-get download libsz2; dpkg-deb -x libsz2* extralibs
-            apt-get download libaec0; dpkg-deb -x libaec* extralibs
-            pushd extralibs/usr/lib/x86_64-linux-gnu
-            ln -s libcbf.so.1 libcbf.so
-            popd
       - uses: julia-actions/julia-buildpkg@latest
-      - name: "Add local libcbf to shared library path"
-        run: |
-            echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/extralibs/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-      - name: "Check"
-        run: |
-             env
       - uses: julia-actions/julia-runtest@latest
         with:
           coverage: 'false'
+      - name: "Check image_test tool"
+        run: |
+                pwd
+                mkdir test/testfiles/test_cbf_unzipped
+                cd test/testfiles/test_cbf_unzipped
+                tar -xjvf ../b4_mini.tar.bz2
+                julia --project=tools image_test.jl test/testfiles/b4_master.cif
