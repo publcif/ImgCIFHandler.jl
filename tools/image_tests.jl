@@ -14,6 +14,7 @@ using CrystalInfoFramework,FilePaths,URIs, Tar
 const test_list = []
 const test_list_with_img = []
 const test_full_list = []
+const dictionary_checks = []
 
 # These macros will become more sophisticated
 # with time to make a nice printout. For now
@@ -170,6 +171,111 @@ end
     av2 = parse(Float64,getproperty(det,"_axis.vector[2]"))
     if av1 != 0 || av2 != 0
         push!(messages,(false,"Detector translation is not parallel to beam"))
+    end
+    return messages
+end
+
+@noimgcheck "Scan range" scan_range(incif) = begin
+    # Check that scan ranges are correct
+    messages = []
+
+    cn = "_diffrn_scan_axis."  #for brevity
+
+    scan_loop = get_loop(incif,cn*"axis_id")
+
+    actual = filter(scan_loop) do r
+        !ismissing(getproperty(r,cn*"displacement_range")) || !ismissing(getproperty(r,cn*"angle_range"))
+    end
+    
+    if size(actual,2) == 0
+        return [(false,"No scan range has been specified")]
+    end
+
+    for or in eachrow(actual)
+        if ismissing(getproperty(or,cn*"displacement_range"))
+            stem = "angle_"
+        else
+            stem = "displacement_"
+        end
+        
+        start = parse(Float64,getproperty(or,cn*stem*"start"))
+        stepsize = parse(Float64,getproperty(or,cn*stem*"increment"))
+        range = parse(Float64,getproperty(or,cn*stem*"range"))
+        if stepsize == 0
+            if range == 0
+                continue
+            else
+                push!(messages,(false,"Non-zero range with zero stepsize for $or"))
+                continue
+            end
+        end
+        
+        numsteps = range/stepsize + 1
+
+        # Look up how many steps should be there
+
+        if cn*"scan_id" in names(scan_loop)
+            scan_id = getproperty(or,cn*"scan_id")
+            scan_info = incif[Dict("_diffrn_scan.id"=>scan_id)]
+            nosteps = parse(Float64,scan_info[1,"_diffrn_scan.frames"])
+        else
+            scan_id = "Scan01"
+            nosteps = parse(Float64,incif["_diffrn_scan.frames"][])
+        end
+
+        # And now check
+        if abs(nosteps - numsteps) > 0.3
+            push!(messages,(false,"Range/increment do not match number of steps $nosteps for scan $scan_id, expected $numsteps"))
+        else
+            push!(messages,(true,"Range/increment match number of steps $nosteps for scan $scan_id (expected $numsteps"))
+        end
+    end
+    return messages
+end
+
+@noimgcheck "All frames present" check_frames(incif) = begin
+    # Check that all frames in a scan have source data
+    messages = []
+    basename = "_diffrn_scan."
+
+    # Get expected number of frames per scan
+
+    numsteps = parse.(Int64,incif[basename*"frames"])
+    if length(numsteps) > 1 || haskey(incif,basename*"id")
+        scan_names = incif[basename*"id"]
+    else
+        scan_names = ["SCAN01"]
+    end
+    
+    # Check that they are all there
+
+    bname = "_diffrn_scan_frame."
+    if length(numsteps) == 1 && !haskey(incif,bname*"scan_id")
+        incif[bname*"scan_id"] = ["SCAN01"]
+        create_loop!(incif,[bname*"scan_id",bname*"frame_number"])
+    end
+
+    scan_info = get_loop(incif,"_diffrn_scan_frame.scan_id")
+    
+    for (one_scan,nsteps) in zip(scan_names,numsteps)
+        os = filter(scan_info) do r
+            getproperty(r,"_diffrn_scan_frame.scan_id") == one_scan
+        end
+        fnumbers = parse.(Int64,os[!,"_diffrn_scan_frame.frame_number"])
+        ufn = unique(fnumbers)
+        if minimum(ufn) != 1
+            push!(messages,(false,"First frame not specified for scan $one_scan"))
+            continue
+        end
+        if maximum(ufn) != nsteps
+            push!(messages,(false,"Last frame $nsteps not specified for scan $one_scan (last is $(maximum(ufn)))"))
+            continue
+        end
+        if length(ufn) != nsteps
+            push!(messages,(false,"Only $(length(ufn)) frames specified for scan $one_scan instead of $nsteps"))
+        else
+            push!(messages,(true,"All frames present and correct for $one_scan"))
+        end
     end
     return messages
 end
@@ -445,6 +551,14 @@ parse_cmdline(d) = begin
         "-j", "--always-check-images"
         help = "Check images even if non-image checks fail"
         nargs = 0
+        "-d", "--dictionary"
+        help = "Check conformance to <dictionary>"
+        nargs = 1
+        default = [""]
+        arg_type = String
+        "--dictionary-only"
+        help = "Check dictionary conformance only (-d option must be provided)"
+        nargs = 0
         "-f", "--full-download"
         help = "Fully download archive for image and archive checks (required for ZIP)"
         nargs = 0
@@ -483,6 +597,8 @@ if abspath(PROGRAM_FILE) == @__FILE__
     subs = Dict(parsed_args["sub"])
     println("\n ImgCIF checker version 0.2\n")
     println("Checking block $blockname in $(incif.original_file)\n")
+    if parsed_args["dictionary"] != [""]
+    end
     result,img = run_img_checks(incif[blockname],
                                 images=parsed_args["check-images"],
                                 always=parsed_args["always-check-images"],
