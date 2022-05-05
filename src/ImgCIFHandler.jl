@@ -395,7 +395,7 @@ peek_image(uri::URI,arch_type,cif_block::CifContainer;entry_no=0,check_name=true
     end
 
     push!(cmd_list, Cmd(`curl -s $uri`,ignorestatus=true))
-    push!(cmd_list, `tar -t -v $decomp_option -f -`)
+    push!(cmd_list, Cmd(`tar -t -v $decomp_option -f -`,ignorestatus=true))
     awkstr1 =  "\$3 > 0 { print \$NF }"
     awkstr2 =  "\$3 > 0 && FNR >= $entry_no { exit }"
     push!(cmd_list, `awk -e $awkstr1 -e $awkstr2`)
