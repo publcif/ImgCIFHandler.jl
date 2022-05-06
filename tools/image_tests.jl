@@ -181,7 +181,18 @@ end
 
     cn = "_diffrn_scan_axis."  #for brevity
 
+    # account for unlooped case
+    
     scan_loop = get_loop(incif,cn*"axis_id")
+    if size(scan_loop,1) == 0 && haskey(incif,cn*"axis_id")
+        loop_names = [cn*"axis_id",cn*"displacement_range",cn*"angle_range",cn*"angle_start",
+                      cn*"angle_increment",cn*"displacement_increment",cn*"displacement_start"]
+        for n in loop_names
+            if !haskey(incif,n) incif[n] = [missing] end
+        end
+        create_loop!(incif,loop_names)
+        scan_loop = get_loop(incif,cn*"axis_id")
+    end
 
     actual = filter(scan_loop) do r
         !ismissing(getproperty(r,cn*"displacement_range")) || !ismissing(getproperty(r,cn*"angle_range"))
@@ -227,7 +238,7 @@ end
         if abs(nosteps - numsteps) > 0.3
             push!(messages,(false,"Range/increment do not match number of steps $nosteps for scan $scan_id, expected $numsteps"))
         else
-            push!(messages,(true,"Range/increment match number of steps $nosteps for scan $scan_id (expected $numsteps"))
+            push!(messages,(true,"Range/increment match number of steps $nosteps for scan $scan_id (expected $numsteps)"))
         end
     end
     return messages
@@ -346,8 +357,8 @@ download_archives(incif;get_full=false,pick=1,subs=Dict()) = begin
         end
         pos = indexin([u],incif["_array_data_external_data.uri"])[]
         arch_type = nothing
-        if haskey(incif,"_array_data_external_data.compression")
-            arch_type = incif["_array_data_external_data.compression"][pos]
+        if haskey(incif,"_array_data_external_data.archive_format")
+            arch_type = incif["_array_data_external_data.archive_format"][pos]
         end
         x = ""
         if !get_full && arch_type in ("TBZ","TGZ","TAR")
@@ -394,7 +405,7 @@ end
 """
 find_load_id(incif,archive_list,have_full) = begin
 
-    known_paths = incif["_array_data_external_data.path"]
+    known_paths = incif["_array_data_external_data.archive_path"]
     
     # First see if our frame is in the file
 
@@ -525,6 +536,7 @@ run_img_checks(incif;images=false,always=false,full=false,connected=false,pick=1
                 testimage = imgload(incif,load_id;local_version=subs)
             end
         catch e
+            @debug e
             verdict([(false,"Unable to access image $load_id: $e")])
             rethrow()
         end

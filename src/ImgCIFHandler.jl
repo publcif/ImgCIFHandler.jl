@@ -52,7 +52,7 @@ imgload(c::CifContainer,frame_id;local_version=Dict()) = begin
     
     img_loop = get_loop(c,"$cat.binary_id")
     if !("$cat.external_data_id" in names(img_loop))
-        throw(error("$(c.original_file) does not contain external data pointers"))
+        @error "$(c.original_file) does not contain external data pointers") img_loop
     end
     if !("$frame_id" in c["$cat.binary_id"])
         throw(error("Data with id $frame_id is not found"))
