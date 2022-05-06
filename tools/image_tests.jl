@@ -88,13 +88,13 @@ end
 # Make sure there is a data specification
 @noimgcheck "Data source" data_source(incif) = begin
     messages = []
-    if !haskey(incif,"_array_data.data") && !haskey(incif,"_array_data.external_format") && !haskey(incif,"_array_data.external_path")
+    if !haskey(incif,"_array_data.data") && !haskey(incif,"_array_data.external_data_id")
         push!(messages,(false,"No source of image data specified"))
     end
     if haskey(incif,"_array_data.data")
         push!(messages,(true,"WARNING:raw data included in file, processing will be slow"))
     end
-    p = URI(incif["_array_data.external_location_uri"][1])
+    p = URI(incif["_array_data_external_data.uri"][1])
     if p.scheme == "file" || p.scheme == nothing
         push!(messages,(true,"WARNING: external data stored in local file system, this is not portable"))
     end
@@ -308,10 +308,10 @@ const img_types = Dict(UInt8 =>"unsigned 8-bit integer",
     if haskey(incif,"_array_structure.encoding_type") && img_types[eltype(img)] != incif["_array_structure.encoding_type"][1]
         push!(messages,(false,"Stated encoding $(incif["_array_structure.encoding_type"][1]) does not match array element type $(eltype(img))"))
     end
-    if haskey(incif,"_array_structure.byte_order") && haskey(incif,"_array_data.external_format")
+    if haskey(incif,"_array_structure.byte_order") && haskey(incif,"_array_data.external_data_id")
         push!(messages,(true,"WARNING: byte order provided in file containing external data pointers"))
     end
-    if haskey(incif,"_array_structure.compression") && incif["_array_structure.compression"][1] != "none" && haskey(incif,"_array_data.external_format")
+    if haskey(incif,"_array_structure.compression") && incif["_array_structure.compression"][1] != "none" && haskey(incif,"_array_data.external_data_id")
         push!(messages,(true,"Externally-provided data by definition is uncompressed but compression is specified as $(incif["array_structure.compression"][1])"))
     end
     return messages
@@ -328,7 +328,7 @@ end
     `subs` is a dictionary of local file equivalents to urls.
 """
 download_archives(incif;get_full=false,pick=1,subs=Dict()) = begin
-    urls = unique(incif["_array_data.external_location_uri"])
+    urls = unique(incif["_array_data_external_data.uri"])
     if !isempty(subs)
         for u in urls
             if !(u in keys(subs))
@@ -344,10 +344,10 @@ download_archives(incif;get_full=false,pick=1,subs=Dict()) = begin
         else
             loc = URI(make_absolute_uri(incif,u))
         end
-        pos = indexin([u],incif["_array_data.external_location_uri"])[]
+        pos = indexin([u],incif["_array_data_external_data.uri"])[]
         arch_type = nothing
-        if haskey(incif,"_array_data.external_compression")
-            arch_type = incif["_array_data.external_compression"][pos]
+        if haskey(incif,"_array_data_external_data.compression")
+            arch_type = incif["_array_data_external_data.compression"][pos]
         end
         x = ""
         if !get_full && arch_type in ("TBZ","TGZ","TAR")
@@ -394,7 +394,7 @@ end
 """
 find_load_id(incif,archive_list,have_full) = begin
 
-    known_paths = incif["_array_data.external_archive_path"]
+    known_paths = incif["_array_data_external_data.path"]
     
     # First see if our frame is in the file
 
@@ -403,6 +403,10 @@ find_load_id(incif,archive_list,have_full) = begin
         for (k,v) in archive_list
             if v in known_paths
                 pos = indexin([v],known_paths)[]
+                # a level of indirection
+                ext_data_id = incif["_array_data_external_data.id"][pos]
+                vv = incif["_array_data.external_data_id"]
+                pos = indexin([ext_data_id],vv)[]
                 return incif["_array_data.binary_id"][pos]
             end
         end
